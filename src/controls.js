@@ -1,11 +1,13 @@
 class Controls {
-    constructor() {
+    constructor(type) {
         this.forward = false;
         this.left = false;
         this.right = false;
         this.reverse = false;
 
-        this.#addKeyboardListeners();
+        if (type !== 'AI') {
+            this.#addKeyboardListeners();
+        }
     }
 
     #addKeyboardListeners() {
@@ -24,8 +26,7 @@ class Controls {
                     this.reverse = true;
                     break;
             }
-            console.table(this);
-        }
+        };
         document.onkeyup = (event) => {
             switch (event.key) {
                 case 'ArrowLeft':
@@ -41,7 +42,15 @@ class Controls {
                     this.reverse = false;
                     break;
             }
-            console.table(this);
-        }
+        };
+    }
+}
+
+class FakeControls {
+    constructor() {
+        this.forward = false;
+        this.left = false;
+        this.right = false;
+        this.reverse = false;
     }
 }
