@@ -2,12 +2,45 @@ body {
     margin: 0;
     background: darkgray;
     overflow: hidden;
-    text-align: center;
+    display: flex;
+    min-height: 100vh;
 }
 
 canvas {
-    background: lightgray;
     display: block;
-    width: 100vw;
     height: 100vh;
+}
+
+#carCanvas {
+    background: lightgray;
+    flex: 0 0 min(42vw, 420px);
+    min-width: 280px;
+}
+
+#networkCanvas {
+    background: #050505;
+    flex: 1 1 auto;
+    min-width: 320px;
+}
+
+@media (max-width: 720px) {
+    body {
+        flex-direction: column;
+    }
+
+    canvas {
+        width: 100vw;
+    }
+
+    #carCanvas {
+        flex: 1 1 58vh;
+        min-width: 0;
+        height: 58vh;
+    }
+
+    #networkCanvas {
+        flex: 1 1 42vh;
+        min-width: 0;
+        height: 42vh;
+    }
 }

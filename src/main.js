@@ -1,9 +1,12 @@
-const canvas = document.getElementById('mycanvas');
-canvas.width = Math.max(420, window.innerWidth);
+const carCanvas = document.getElementById('carCanvas');
+const networkCanvas = document.getElementById('networkCanvas');
+const carCtx = carCanvas.getContext('2d');
+const networkCtx = networkCanvas.getContext('2d');
 
-const ctx = canvas.getContext('2d');
-const ROAD_WIDTH = Math.min(270, canvas.width * 0.58);
-const road = new Road(canvas.width > 700 ? 185 : canvas.width / 2, ROAD_WIDTH);
+resizeCanvases();
+
+const ROAD_WIDTH = Math.min(270, carCanvas.width * 0.86);
+const road = new Road(carCanvas.width / 2, ROAD_WIDTH);
 const INPUT_COUNT = 15;
 const OUTPUT_COUNT = 4;
 const HIDDEN_LAYERS = [18, 12];
@@ -147,9 +150,7 @@ function isCompatibleBrain(brain) {
 }
 
 function animate() {
-    if (canvas.width !== Math.max(420, window.innerWidth)) {
-        canvas.width = Math.max(420, window.innerWidth);
-    }
+    resizeCanvases();
     trafficManager.update(road.borders, bestCar.y);
 
     for (let car of cars) {
@@ -164,61 +165,79 @@ function animate() {
 
     bestCar = Car.getBestCar(cars);
 
-    canvas.height = window.innerHeight;
+    carCtx.clearRect(0, 0, carCanvas.width, carCanvas.height);
 
-    ctx.save();
-    ctx.translate(0, -bestCar.y + canvas.height * 0.7);
+    carCtx.save();
+    carCtx.translate(0, -bestCar.y + carCanvas.height * 0.7);
 
-    road.draw(ctx);
+    road.draw(carCtx);
 
     for (let car of trafficManager.cars) {
-        car.draw(ctx);
+        car.draw(carCtx);
     }
 
-    ctx.globalAlpha = 0.2;
+    carCtx.globalAlpha = 0.2;
     for (let car of cars) {
-        car.draw(ctx);
+        car.draw(carCtx);
     }
-    ctx.globalAlpha = 1;
+    carCtx.globalAlpha = 1;
 
-    bestCar.draw(ctx, true);
+    bestCar.draw(carCtx, true);
 
-    ctx.restore();
+    carCtx.restore();
 
     drawBrainPanel();
 
-    ctx.save();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-    ctx.fillRect(8, 8, 118, 58);
-    ctx.fillStyle = 'white';
-    ctx.font = '12px sans-serif';
-    ctx.fillText(`Gen: ${generation}`, 16, 28);
-    ctx.fillText(`Alive: ${cars.filter((car) => !car.damaged).length}`, 16, 44);
-    ctx.fillText(`Workers: ${workers.length}`, 16, 60);
-    ctx.restore();
+    carCtx.save();
+    carCtx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    carCtx.fillRect(8, 8, 118, 58);
+    carCtx.fillStyle = 'white';
+    carCtx.font = '12px sans-serif';
+    carCtx.fillText(`Gen: ${generation}`, 16, 28);
+    carCtx.fillText(`Alive: ${cars.filter((car) => !car.damaged).length}`, 16, 44);
+    carCtx.fillText(`Workers: ${workers.length}`, 16, 60);
+    carCtx.restore();
 
     requestAnimationFrame(animate);
 }
 
 function drawBrainPanel() {
-    const panelX = canvas.width > 700 ? road.right + 42 : 8;
-    const panelY = canvas.width > 700 ? 0 : canvas.height - 270;
-    const panelWidth = canvas.width > 700 ? canvas.width - panelX : canvas.width - 16;
-    const panelHeight = canvas.width > 700 ? canvas.height : 260;
-
-    ctx.save();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.94)';
-    ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
-    ctx.globalAlpha = 0.85;
+    networkCtx.clearRect(0, 0, networkCanvas.width, networkCanvas.height);
+    networkCtx.save();
+    networkCtx.fillStyle = '#050505';
+    networkCtx.fillRect(0, 0, networkCanvas.width, networkCanvas.height);
     Visualizer.drawNetwork(
-        ctx,
+        networkCtx,
         bestCar.brain,
         bestCar.sensor.getInputs(road),
         bestCar.lastOutputs,
-        panelX + 10,
-        panelY + 20,
-        Math.max(180, panelWidth - 20),
-        Math.max(220, panelHeight - 40)
+        12,
+        10,
+        networkCanvas.width - 24,
+        networkCanvas.height - 20,
+        performance.now()
     );
-    ctx.restore();
+    networkCtx.restore();
+}
+
+function resizeCanvases() {
+    const carRect = carCanvas.getBoundingClientRect();
+    const networkRect = networkCanvas.getBoundingClientRect();
+    const carWidth = Math.max(1, Math.floor(carRect.width));
+    const carHeight = Math.max(1, Math.floor(carRect.height));
+    const networkWidth = Math.max(1, Math.floor(networkRect.width));
+    const networkHeight = Math.max(1, Math.floor(networkRect.height));
+
+    if (carCanvas.width !== carWidth || carCanvas.height !== carHeight) {
+        carCanvas.width = carWidth;
+        carCanvas.height = carHeight;
+    }
+
+    if (
+        networkCanvas.width !== networkWidth ||
+        networkCanvas.height !== networkHeight
+    ) {
+        networkCanvas.width = networkWidth;
+        networkCanvas.height = networkHeight;
+    }
 }
