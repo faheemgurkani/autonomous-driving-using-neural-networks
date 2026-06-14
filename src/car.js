@@ -1,6 +1,16 @@
 class Car {
-    constructor(x, y, width, height, color = 'blue', maxSpeed = 3, brain = null) {
+    constructor(
+        x,
+        y,
+        width,
+        height,
+        color = 'blue',
+        maxSpeed = 3,
+        brain = null,
+        controlType = brain ? 'AI' : 'KEYS'
+    ) {
         this.x = x;
+        this.startY = y;
         this.y = y;
         this.width = width;
         this.height = height;
@@ -14,15 +24,13 @@ class Car {
 
         this.damaged = false;
         this.fitness = 0;
-        this.useBrain = brain != null;
+        this.distance = 0;
+        this.framesAlive = 0;
+        this.useBrain = controlType === 'AI' && brain != null;
         this.brain = brain;
         this.lastOutputs = [0, 0, 0, 0];
 
-        if (this.useBrain) {
-            this.controls = new FakeControls();
-        } else {
-            this.controls = new Controls();
-        }
+        this.controls = this.useBrain ? new FakeControls() : new Controls(controlType);
 
         this.sensor = new Sensor(this);
     }
@@ -33,32 +41,37 @@ class Car {
         );
     }
 
-    update(roadBorders, traffic) {
+    update(roadBorders, traffic, road = null) {
         if (!this.damaged) {
             if (this.useBrain) {
-                this.#applyBrain();
+                this.sensor.update(roadBorders, traffic, this.damaged);
+                this.#applyBrain(road);
             }
+            const previousY = this.y;
             this.#move();
             this.polygon = this.#createPolygon();
+            this.bounds = getPolygonBounds(this.polygon);
             this.damaged = this.#damage(roadBorders, traffic);
             if (!this.damaged) {
-                this.fitness += this.speed;
+                this.framesAlive++;
+                this.distance += Math.max(0, previousY - this.y);
+                this.#score(road);
             }
         }
         this.sensor.update(roadBorders, traffic, this.damaged);
     }
 
-    #applyBrain() {
-        const offsets = this.sensor.readings.map((r) =>
-            r == null ? 0 : 1 - r.offset
-        );
-        const outputs = NeuralNetwork.feedForward(this.brain, offsets);
+    #applyBrain(road) {
+        const inputs = road
+            ? this.sensor.getInputs(road)
+            : this.sensor.readings.map((r) => (r == null ? 0 : 1 - r.offset));
+        const outputs = NeuralNetwork.feedForward(this.brain, inputs);
         this.lastOutputs = outputs;
 
-        this.controls.forward = outputs[0] === 1;
-        this.controls.reverse = outputs[1] === 1;
-        this.controls.left = outputs[2] === 1;
-        this.controls.right = outputs[3] === 1;
+        this.controls.forward = outputs[0] > 0.2;
+        this.controls.reverse = outputs[1] > 0.65;
+        this.controls.left = outputs[2] > 0.15;
+        this.controls.right = outputs[3] > 0.15;
     }
 
     #move() {
@@ -128,11 +141,44 @@ class Car {
             }
         }
         for (let i = 0; i < traffic.length; i++) {
+            if (traffic[i] === this || !traffic[i].polygon) {
+                continue;
+            }
+            if (
+                this.bounds &&
+                traffic[i].bounds &&
+                !boundsOverlap(this.bounds, traffic[i].bounds)
+            ) {
+                continue;
+            }
             if (polysIntersect(this.polygon, traffic[i].polygon)) {
                 return true;
             }
         }
         return false;
+    }
+
+    #score(road) {
+        const progressScore = this.distance * 2;
+        const speedScore = Math.max(0, this.speed) * 8;
+        const survivalScore = this.framesAlive * 0.03;
+        const steeringPenalty =
+            (this.controls.left && this.controls.right ? 0.5 : 0) +
+            Math.abs(normalizeAngle(this.angle)) * 0.8;
+        const laneIndex = road
+            ? clamp(
+                  Math.round((this.x - road.left) / (road.width / road.laneCount) - 0.5),
+                  0,
+                  road.laneCount - 1
+              )
+            : 0;
+        const laneCenter = road
+            ? road.getLaneCenter(laneIndex)
+            : this.x;
+        const lanePenalty = road ? Math.abs(this.x - laneCenter) * 0.02 : 0;
+
+        this.fitness =
+            progressScore + speedScore + survivalScore - steeringPenalty - lanePenalty;
     }
 
     draw(ctx, drawSensor = false) {

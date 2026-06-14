@@ -1,72 +1,131 @@
-importScripts('utils.js', 'network.js', 'sensor.js', 'road.js', 'controls.js', 'car.js');
+importScripts(
+    'utils.js',
+    'network.js',
+    'sensor.js',
+    'road.js',
+    'controls.js',
+    'car.js',
+    'traffic.js'
+);
 
 self.onmessage = function (event) {
-    const { roadWidth, roadLaneCount, trafficCount, carCount, bestBrain } =
-        event.data;
+    const {
+        roadWidth,
+        roadLaneCount,
+        trafficCount,
+        carCount,
+        inputCount,
+        outputCount,
+        hiddenLayers,
+        mutationRate,
+        workerIndex,
+        parents = [],
+    } = event.data;
 
     const road = new Road(200 / 2, roadWidth, roadLaneCount);
-    const traffic = generateTraffic(road, trafficCount);
+    const trafficManager = new TrafficManager(road, trafficCount);
+    let cars = generateCars(
+        road,
+        carCount,
+        inputCount,
+        outputCount,
+        hiddenLayers,
+        parents,
+        mutationRate
+    );
 
-    let cars = generateCars(road, carCount, bestBrain ? NeuralNetwork.clone(bestBrain) : null);
+    let bestResult = null;
+    const steps = 900 + workerIndex * 70;
+    for (let i = 0; i < steps; i++) {
+        const bestCar = Car.getBestCar(cars);
+        trafficManager.update(road.borders, bestCar.y);
 
-    for (let i = 0; i < 500; i++) {
-        for (let car of traffic) {
-            car.update(road.borders, []);
-        }
-
-        for (let car of cars) {
+        for (const car of cars) {
             if (!car.damaged) {
-                car.update(road.borders, traffic);
+                car.update(road.borders, trafficManager.cars, road);
             }
         }
 
         if (cars.every((car) => car.damaged)) {
             const best = Car.getBestCar(cars);
-            cars = generateNextGeneration(road, cars, carCount);
-            if (best.fitness > 0) {
-                self.postMessage(best.brain);
-            }
+            bestResult = keepBest(bestResult, best);
+            cars = generateCars(
+                road,
+                carCount,
+                inputCount,
+                outputCount,
+                hiddenLayers,
+                [{ brain: best.brain, fitness: best.fitness }, ...parents],
+                mutationRate
+            );
+            trafficManager.reset();
         }
     }
 
-    const best = Car.getBestCar(cars);
-    self.postMessage(best.brain);
+    bestResult = keepBest(bestResult, Car.getBestCar(cars));
+    if (bestResult) {
+        self.postMessage(bestResult);
+    }
 };
 
-function generateCars(road, n, bestBrain = null) {
+function generateCars(
+    road,
+    n,
+    inputCount,
+    outputCount,
+    hiddenLayers,
+    parents = [],
+    mutationRate = 0.18
+) {
+    const ranked = parents
+        .filter((entry) => entry.brain)
+        .sort((a, b) => b.fitness - a.fitness);
+
     return Array.from({ length: n }, (_, i) => {
         let brain;
-        if (bestBrain) {
-            brain = NeuralNetwork.clone(bestBrain);
-            if (i !== 0) {
-                NeuralNetwork.mutate(brain, 0.1);
-            }
+        if (ranked.length === 0) {
+            brain = NeuralNetwork.random(inputCount, outputCount, hiddenLayers);
+        } else if (i === 0) {
+            brain = NeuralNetwork.clone(ranked[0].brain);
+        } else if (ranked.length > 1 && Math.random() < 0.65) {
+            brain = NeuralNetwork.crossover(
+                pickParent(ranked).brain,
+                pickParent(ranked).brain
+            );
+            NeuralNetwork.mutate(brain, mutationRate);
         } else {
-            brain = NeuralNetwork.random(5, 4);
+            brain = NeuralNetwork.clone(pickParent(ranked).brain);
+            NeuralNetwork.mutate(brain, mutationRate);
         }
-        return new Car(road.getLaneCenter(1), 100, 30, 50, 'blue', 3, brain);
+
+        return new Car(
+            road.getLaneCenter(1),
+            100,
+            30,
+            50,
+            'hsl(210, 100%, 50%)',
+            3.3,
+            brain,
+            'AI'
+        );
     });
 }
 
-function generateTraffic(road, n) {
-    const traffic = [];
-    for (let i = 0; i < n; i++) {
-        const lane = Math.floor(Math.random() * road.laneCount);
-        const car = new Car(
-            road.getLaneCenter(lane),
-            i * -200,
-            30,
-            50,
-            'red',
-            2
-        );
-        car.controls.forward = true;
-        traffic.push(car);
-    }
-    return traffic;
+function pickParent(parents) {
+    const a = parents[getRandomInt(0, parents.length - 1)];
+    const b = parents[getRandomInt(0, parents.length - 1)];
+    return a.fitness > b.fitness ? a : b;
 }
 
-function generateNextGeneration(road, cars, carCount) {
-    const best = Car.getBestCar(cars);
-    return generateCars(road, carCount, best.brain);
+function keepBest(current, car) {
+    if (!car || !car.brain) {
+        return current;
+    }
+    if (!current || car.fitness > current.fitness) {
+        return {
+            brain: car.brain,
+            fitness: car.fitness,
+        };
+    }
+    return current;
 }

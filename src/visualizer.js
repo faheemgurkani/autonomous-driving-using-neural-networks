@@ -3,12 +3,11 @@ class Visualizer {
         const margin = 50;
         const layerCount = network.levels.length + 1;
         const levelHeight = (height - margin * 2) / (layerCount - 1);
-        const nodeRadius = 20;
+        const nodeRadius = Math.max(8, Math.min(18, width / 30));
 
         const layerSizes = [
             network.levels[0].inputCount,
-            network.levels[0].outputCount,
-            network.levels[network.levels.length - 1].outputCount,
+            ...network.levels.map((level) => level.outputCount),
         ];
 
         for (let i = 0; i < layerCount; i++) {
@@ -27,13 +26,17 @@ class Visualizer {
                 ctx.fillStyle = 'white';
                 ctx.fill();
 
+                let activation = 0;
                 if (i === 0) {
-                    ctx.fillStyle = inputs[j] ? 'green' : 'red';
+                    activation = inputs[j] || 0;
                 } else if (i === layerCount - 1) {
-                    ctx.fillStyle = outputs[j] ? 'green' : 'red';
-                } else {
-                    ctx.fillStyle = 'black';
+                    activation = outputs[j] || 0;
                 }
+                const intensity = Math.round(lerp(40, 255, Math.abs(activation)));
+                ctx.fillStyle =
+                    activation >= 0
+                        ? `rgb(${40}, ${intensity}, ${80})`
+                        : `rgb(${intensity}, ${50}, ${60})`;
                 ctx.fill();
             }
         }
@@ -62,8 +65,12 @@ class Visualizer {
                     ctx.beginPath();
                     ctx.moveTo(x1, y1);
                     ctx.lineTo(x2, y2);
-                    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-                    ctx.lineWidth = 2;
+                    const weight = level.weights[j][k];
+                    ctx.strokeStyle =
+                        weight >= 0
+                            ? `rgba(255,255,0,${Math.abs(weight) * 0.55})`
+                            : `rgba(0,60,255,${Math.abs(weight) * 0.55})`;
+                    ctx.lineWidth = Math.max(0.5, Math.abs(weight) * 2.5);
                     ctx.stroke();
                 }
             }

@@ -1,12 +1,14 @@
 class Controls {
-    constructor(type) {
+    constructor(type = 'KEYS') {
         this.forward = false;
         this.left = false;
         this.right = false;
         this.reverse = false;
 
-        if (type !== 'AI') {
+        if (type === 'KEYS' && typeof document !== 'undefined') {
             this.#addKeyboardListeners();
+        } else if (type === 'DUMMY') {
+            this.forward = true;
         }
     }
 

@@ -7,4 +7,4 @@
 
 ## Resources
 
-- This project is inspired from: [@radu](https://www.youtube.com/watch?v=Rs_rAxEsAvI)
+- This project is inspired from: [radu](https://www.youtube.com/watch?v=Rs_rAxEsAvI)

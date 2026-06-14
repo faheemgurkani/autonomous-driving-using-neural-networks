@@ -1,16 +1,20 @@
 class NeuralNetwork {
-    constructor(inputCount, outputCount, hiddenCount = 16) {
+    constructor(inputCount, outputCount, hiddenCounts = [18, 12]) {
         this.inputCount = inputCount;
         this.outputCount = outputCount;
-        this.hiddenCount = hiddenCount;
+        this.hiddenCounts = Array.isArray(hiddenCounts)
+            ? hiddenCounts
+            : [hiddenCounts];
 
         this.levels = [];
-        this.levels[0] = new Level(inputCount, hiddenCount);
-        this.levels[1] = new Level(hiddenCount, outputCount);
+        const layerSizes = [inputCount, ...this.hiddenCounts, outputCount];
+        for (let i = 0; i < layerSizes.length - 1; i++) {
+            this.levels.push(new Level(layerSizes[i], layerSizes[i + 1]));
+        }
     }
 
-    static random(inputCount, outputCount, hiddenCount = 16) {
-        return new NeuralNetwork(inputCount, outputCount, hiddenCount);
+    static random(inputCount, outputCount, hiddenCounts = [18, 12]) {
+        return new NeuralNetwork(inputCount, outputCount, hiddenCounts);
     }
 
     static feedForward(network, inputs) {
@@ -23,6 +27,7 @@ class NeuralNetwork {
 
     static clone(network) {
         const copy = JSON.parse(JSON.stringify(network));
+        copy.hiddenCounts = copy.hiddenCounts || [copy.hiddenCount || 16];
         return Object.assign(Object.create(NeuralNetwork.prototype), copy);
     }
 
@@ -55,7 +60,7 @@ class NeuralNetwork {
         const child = new NeuralNetwork(
             parentA.inputCount,
             parentA.outputCount,
-            parentA.hiddenCount
+            parentA.hiddenCounts || [parentA.hiddenCount || 16]
         );
         for (let i = 0; i < child.levels.length; i++) {
             for (let j = 0; j < child.levels[i].biases.length; j++) {
@@ -83,6 +88,7 @@ class NeuralNetwork {
     static load() {
         if (localStorage.getItem('bestBrain')) {
             const network = JSON.parse(localStorage.getItem('bestBrain'));
+            network.hiddenCounts = network.hiddenCounts || [network.hiddenCount || 16];
             return Object.assign(Object.create(NeuralNetwork.prototype), network);
         }
         return null;
@@ -114,9 +120,9 @@ class Level {
         for (let i = 0; i < level.outputCount; i++) {
             let sum = 0;
             for (let j = 0; j < level.inputCount; j++) {
-                sum += inputs[j] * level.weights[j][i];
+                sum += (inputs[j] || 0) * level.weights[j][i];
             }
-            outputs[i] = sum > level.biases[i] ? 1 : 0;
+            outputs[i] = Math.tanh(sum - level.biases[i]);
         }
         return outputs;
     }

@@ -1,9 +1,10 @@
 class Sensor {
     constructor(car) {
         this.car = car;
-        this.rayCount = 5;
-        this.rayLength = 150;
-        this.raySpread = Math.PI / 2;
+        this.rayCount = 9;
+        this.rayLength = 220;
+        this.raySpread = Math.PI * 0.9;
+        this.extraAngles = [-Math.PI * 0.72, Math.PI * 0.72];
 
         this.rays = [];
         this.readings = [];
@@ -73,22 +74,50 @@ class Sensor {
             };
             this.rays.push([start, end]);
         }
+
+        for (const angle of this.extraAngles) {
+            const rayAngle = this.car.angle + angle;
+            const start = { x: this.car.x, y: this.car.y };
+            const end = {
+                x: this.car.x - Math.sin(rayAngle) * this.rayLength * 0.65,
+                y: this.car.y - Math.cos(rayAngle) * this.rayLength * 0.65,
+            };
+            this.rays.push([start, end]);
+        }
+    }
+
+    getInputs(road) {
+        const rayInputs = this.readings.map((r) => (r == null ? 0 : 1 - r.offset));
+        const laneWidth = road.width / road.laneCount;
+        const lanePosition = clamp(
+            ((this.car.x - road.left) / laneWidth - (road.laneCount - 1) / 2) /
+                ((road.laneCount - 1) / 2 || 1),
+            -1,
+            1
+        );
+        return [
+            ...rayInputs,
+            clamp(this.car.speed / this.car.maxSpeed, -1, 1),
+            lanePosition,
+            Math.sin(this.car.angle),
+            Math.cos(this.car.angle),
+        ];
     }
 
     draw(ctx) {
-        for (let i = 0; i < this.rayCount; i++) {
+        for (let i = 0; i < this.rays.length; i++) {
             let end = this.readings[i] ? this.readings[i] : this.rays[i][1];
 
             ctx.beginPath();
             ctx.lineWidth = 2;
-            ctx.strokeStyle = 'yellow';
+            ctx.strokeStyle = i < this.rayCount ? 'yellow' : 'rgba(0, 255, 255, 0.8)';
             ctx.moveTo(this.rays[i][0].x, this.rays[i][0].y);
             ctx.lineTo(end.x, end.y);
             ctx.stroke();
 
             ctx.beginPath();
             ctx.lineWidth = 2;
-            ctx.strokeStyle = 'black';
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.65)';
             ctx.moveTo(this.rays[i][1].x, this.rays[i][1].y);
             ctx.lineTo(end.x, end.y);
             ctx.stroke();

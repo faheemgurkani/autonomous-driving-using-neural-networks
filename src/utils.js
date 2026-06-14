@@ -2,7 +2,66 @@ function lerp(A, B, t) {
     return A + (B - A) * t;
 }
 
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+function getRandomInt(min, max) {
+    return Math.floor(lerp(min, max + 1, Math.random()));
+}
+
+function normalizeAngle(angle) {
+    while (angle > Math.PI) {
+        angle -= Math.PI * 2;
+    }
+    while (angle < -Math.PI) {
+        angle += Math.PI * 2;
+    }
+    return angle;
+}
+
+function getPolygonBounds(poly) {
+    return {
+        left: Math.min(...poly.map((p) => p.x)),
+        right: Math.max(...poly.map((p) => p.x)),
+        top: Math.min(...poly.map((p) => p.y)),
+        bottom: Math.max(...poly.map((p) => p.y)),
+    };
+}
+
+function boundsOverlap(a, b) {
+    return !(
+        a.left > b.right ||
+        a.right < b.left ||
+        a.top > b.bottom ||
+        a.bottom < b.top
+    );
+}
+
+function pointInPoly(point, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const xi = poly[i].x;
+        const yi = poly[i].y;
+        const xj = poly[j].x;
+        const yj = poly[j].y;
+        const intersects =
+            yi > point.y !== yj > point.y &&
+            point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+        if (intersects) {
+            inside = !inside;
+        }
+    }
+    return inside;
+}
+
 function polysIntersect(poly1, poly2) {
+    const bounds1 = getPolygonBounds(poly1);
+    const bounds2 = getPolygonBounds(poly2);
+    if (!boundsOverlap(bounds1, bounds2)) {
+        return false;
+    }
+
     for (let i = 0; i < poly1.length; i++) {
         for (let j = 0; j < poly2.length; j++) {
             const touch = getIntersection(
@@ -16,7 +75,7 @@ function polysIntersect(poly1, poly2) {
             }
         }
     }
-    return false;
+    return pointInPoly(poly1[0], poly2) || pointInPoly(poly2[0], poly1);
 }
 
 function getIntersection(A, B, C, D) {
