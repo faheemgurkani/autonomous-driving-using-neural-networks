@@ -26,6 +26,7 @@ class Car {
         this.fitness = 0;
         this.distance = 0;
         this.framesAlive = 0;
+        this.metrics = this.#createMetrics();
         this.useBrain = controlType === 'AI' && brain != null;
         this.brain = brain;
         this.lastOutputs = [0, 0, 0, 0];
@@ -36,9 +37,7 @@ class Car {
     }
 
     static getBestCar(cars) {
-        return cars.reduce((best, car) =>
-            car.fitness > best.fitness ? car : best
-        );
+        return [...cars].sort(FitnessEvaluator.compareCars)[0];
     }
 
     update(roadBorders, traffic, road = null) {
@@ -47,14 +46,22 @@ class Car {
                 this.sensor.update(roadBorders, traffic, this.damaged);
                 this.#applyBrain(road);
             }
-            const previousY = this.y;
+            const previousState = {
+                x: this.x,
+                y: this.y,
+                angle: this.angle,
+                speed: this.speed,
+            };
             this.#move();
             this.polygon = this.#createPolygon();
             this.bounds = getPolygonBounds(this.polygon);
             this.damaged = this.#damage(roadBorders, traffic);
+            FitnessEvaluator.updateMetrics(this, previousState, road);
             if (!this.damaged) {
                 this.framesAlive++;
-                this.distance += Math.max(0, previousY - this.y);
+                this.distance = this.metrics.forwardProgress;
+                this.#score(road);
+            } else {
                 this.#score(road);
             }
         }
@@ -159,26 +166,22 @@ class Car {
     }
 
     #score(road) {
-        const progressScore = this.distance * 2;
-        const speedScore = Math.max(0, this.speed) * 8;
-        const survivalScore = this.framesAlive * 0.03;
-        const steeringPenalty =
-            (this.controls.left && this.controls.right ? 0.5 : 0) +
-            Math.abs(normalizeAngle(this.angle)) * 0.8;
-        const laneIndex = road
-            ? clamp(
-                  Math.round((this.x - road.left) / (road.width / road.laneCount) - 0.5),
-                  0,
-                  road.laneCount - 1
-              )
-            : 0;
-        const laneCenter = road
-            ? road.getLaneCenter(laneIndex)
-            : this.x;
-        const lanePenalty = road ? Math.abs(this.x - laneCenter) * 0.02 : 0;
+        this.fitness = FitnessEvaluator.score(this, road);
+    }
 
-        this.fitness =
-            progressScore + speedScore + survivalScore - steeringPenalty - lanePenalty;
+    #createMetrics() {
+        return {
+            forwardProgress: 0,
+            backwardTravel: 0,
+            lateralMotion: 0,
+            absSteering: 0,
+            unnecessarySteering: 0,
+            laneErrorSum: 0,
+            headingErrorSum: 0,
+            speedSum: 0,
+            closeCallSum: 0,
+            idleFrames: 0,
+        };
     }
 
     draw(ctx, drawSensor = false) {

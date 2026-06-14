@@ -69,6 +69,18 @@ class TrafficManager {
         car.fitness = 0;
         car.distance = 0;
         car.framesAlive = 0;
+        car.metrics = {
+            forwardProgress: 0,
+            backwardTravel: 0,
+            lateralMotion: 0,
+            absSteering: 0,
+            unnecessarySteering: 0,
+            laneErrorSum: 0,
+            headingErrorSum: 0,
+            speedSum: 0,
+            closeCallSum: 0,
+            idleFrames: 0,
+        };
         car.controls.forward = true;
     }
 }

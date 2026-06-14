@@ -81,17 +81,50 @@ class NeuralNetwork {
         return child;
     }
 
-    static save(network) {
+    static save(network, metadata = {}) {
+        const champion = {
+            brain: network,
+            metadata: {
+                savedAt: new Date().toISOString(),
+                ...metadata,
+            },
+        };
         localStorage.setItem('bestBrain', JSON.stringify(network));
+        localStorage.setItem('bestChampion', JSON.stringify(champion));
     }
 
     static load() {
-        if (localStorage.getItem('bestBrain')) {
-            const network = JSON.parse(localStorage.getItem('bestBrain'));
+        const champion = localStorage.getItem('bestChampion');
+        if (champion) {
+            const parsed = JSON.parse(champion);
+            const network = parsed.brain;
+            network.hiddenCounts = network.hiddenCounts || [network.hiddenCount || 16];
+            return Object.assign(Object.create(NeuralNetwork.prototype), network);
+        }
+
+        const brain = localStorage.getItem('bestBrain');
+        if (brain) {
+            const network = JSON.parse(brain);
             network.hiddenCounts = network.hiddenCounts || [network.hiddenCount || 16];
             return Object.assign(Object.create(NeuralNetwork.prototype), network);
         }
         return null;
+    }
+
+    static loadChampion() {
+        const champion = localStorage.getItem('bestChampion');
+        if (!champion) {
+            const brain = this.load();
+            return brain ? { brain, metadata: { source: 'legacy-bestBrain' } } : null;
+        }
+        const parsed = JSON.parse(champion);
+        parsed.brain.hiddenCounts =
+            parsed.brain.hiddenCounts || [parsed.brain.hiddenCount || 16];
+        parsed.brain = Object.assign(
+            Object.create(NeuralNetwork.prototype),
+            parsed.brain
+        );
+        return parsed;
     }
 }
 

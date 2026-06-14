@@ -4,6 +4,7 @@ importScripts(
     'sensor.js',
     'road.js',
     'controls.js',
+    'fitness.js',
     'car.js',
     'traffic.js'
 );

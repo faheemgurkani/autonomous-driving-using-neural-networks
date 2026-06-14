@@ -18,6 +18,7 @@ const WORKER_COUNT = Math.max(
     1,
     Math.min(4, (navigator.hardwareConcurrency || 2) - 1)
 );
+const PARALLEL_UNIVERSE_COUNT = Math.max(4, WORKER_COUNT * 2);
 
 let cars = generateCars(CAR_COUNT);
 let bestCar = cars[0];
@@ -26,10 +27,18 @@ const workerBrains = [];
 let generation = 1;
 let globalBestFitness = -Infinity;
 let workers = [];
+let championMetadata = null;
 
-const savedBrain = NeuralNetwork.load();
-if (isCompatibleBrain(savedBrain)) {
-    cars = generateCars(CAR_COUNT, [{ brain: savedBrain, fitness: 1 }]);
+const savedChampion = NeuralNetwork.loadChampion();
+if (savedChampion && isCompatibleBrain(savedChampion.brain)) {
+    championMetadata = savedChampion.metadata;
+    globalBestFitness = savedChampion.metadata?.fitness ?? -Infinity;
+    cars = generateCars(CAR_COUNT, [
+        {
+            brain: savedChampion.brain,
+            fitness: savedChampion.metadata?.fitness ?? 1,
+        },
+    ]);
     bestCar = cars[0];
 }
 
@@ -52,7 +61,7 @@ function generateCars(n, parents = []) {
             brain = breedBrain(sortedParents, i);
         }
 
-        return new Car(
+        const car = new Car(
             road.getLaneCenter(1),
             100,
             30,
@@ -62,6 +71,9 @@ function generateCars(n, parents = []) {
             brain,
             'AI'
         );
+        car.universeId = i % PARALLEL_UNIVERSE_COUNT;
+        car.parallelSpawnIndex = i;
+        return car;
     });
 }
 
@@ -97,7 +109,15 @@ function generateNextGeneration(cars) {
 
     if (best && best.fitness > globalBestFitness) {
         globalBestFitness = best.fitness;
-        NeuralNetwork.save(best.brain);
+        championMetadata = {
+            generation,
+            fitness: best.fitness,
+            fitnessModel: 'hyperfitness-v1',
+            universeCount: PARALLEL_UNIVERSE_COUNT,
+            carCount: CAR_COUNT,
+            metrics: FitnessEvaluator.summarize(Car.getBestCar(cars)),
+        };
+        NeuralNetwork.save(best.brain, championMetadata);
     }
 
     const parents = [...ranked.slice(0, 18), ...workerBrains.splice(0, 8)];
@@ -138,6 +158,7 @@ function createWorkerPayload(parents, workerIndex) {
         hiddenLayers: HIDDEN_LAYERS,
         mutationRate: MUTATION_RATE,
         workerIndex,
+        universeCount: PARALLEL_UNIVERSE_COUNT,
         parents: parents.map((entry) => ({
             brain: entry.brain,
             fitness: entry.fitness,
@@ -178,7 +199,9 @@ function animate() {
 
     carCtx.globalAlpha = 0.2;
     for (let car of cars) {
-        car.draw(carCtx);
+        if (car !== bestCar) {
+            car.draw(carCtx);
+        }
     }
     carCtx.globalAlpha = 1;
 
@@ -190,12 +213,13 @@ function animate() {
 
     carCtx.save();
     carCtx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-    carCtx.fillRect(8, 8, 118, 58);
+    carCtx.fillRect(8, 8, 132, 74);
     carCtx.fillStyle = 'white';
     carCtx.font = '12px sans-serif';
     carCtx.fillText(`Gen: ${generation}`, 16, 28);
     carCtx.fillText(`Alive: ${cars.filter((car) => !car.damaged).length}`, 16, 44);
     carCtx.fillText(`Workers: ${workers.length}`, 16, 60);
+    carCtx.fillText(`Universes: ${PARALLEL_UNIVERSE_COUNT}`, 16, 76);
     carCtx.restore();
 
     requestAnimationFrame(animate);
