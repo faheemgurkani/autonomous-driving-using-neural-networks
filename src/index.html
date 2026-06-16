@@ -5,20 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Self Driving Car Using Neural Networks</title>
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
-    <canvas id="carCanvas"></canvas>
+    <div class="simulation-panel">
+        <canvas id="carCanvas"></canvas>
+        <div class="simulation-controls">
+            <button id="saveBestCarBtn" type="button">Save Best Car</button>
+            <span id="saveStatus" class="save-status" aria-live="polite"></span>
+        </div>
+    </div>
     <canvas id="networkCanvas"></canvas>
-    <script src="utils.js?v=3"></script>
-    <script src="network.js?v=3"></script>
-    <script src="visualizer.js?v=3"></script>
-    <script src="sensor.js?v=3"></script>
-    <script src="road.js?v=3"></script>
-    <script src="controls.js?v=3"></script>
-    <script src="fitness.js?v=3"></script>
-    <script src="car.js?v=3"></script>
-    <script src="traffic.js?v=3"></script>
-    <script src="main.js?v=3"></script>
+    <script src="utils.js?v=4"></script>
+    <script src="network.js?v=4"></script>
+    <script src="visualizer.js?v=4"></script>
+    <script src="sensor.js?v=4"></script>
+    <script src="road.js?v=4"></script>
+    <script src="controls.js?v=4"></script>
+    <script src="fitness.js?v=4"></script>
+    <script src="car.js?v=4"></script>
+    <script src="traffic.js?v=4"></script>
+    <script src="main.js?v=4"></script>
 </body>
 </html>

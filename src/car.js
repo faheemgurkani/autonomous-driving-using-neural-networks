@@ -37,7 +37,14 @@ class Car {
     }
 
     static getBestCar(cars) {
-        return [...cars].sort(FitnessEvaluator.compareCars)[0];
+        const alive = cars.filter((car) => !car.damaged);
+        const pool = alive.length > 0 ? alive : cars;
+        return [...pool].sort(FitnessEvaluator.compareCars)[0];
+    }
+
+    static getBestCarIndex(cars) {
+        const best = Car.getBestCar(cars);
+        return cars.indexOf(best);
     }
 
     update(roadBorders, traffic, road = null) {

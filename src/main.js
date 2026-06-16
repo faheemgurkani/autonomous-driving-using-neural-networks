@@ -1,5 +1,7 @@
 const carCanvas = document.getElementById('carCanvas');
 const networkCanvas = document.getElementById('networkCanvas');
+const saveBestCarBtn = document.getElementById('saveBestCarBtn');
+const saveStatus = document.getElementById('saveStatus');
 const carCtx = carCanvas.getContext('2d');
 const networkCtx = networkCanvas.getContext('2d');
 
@@ -45,6 +47,9 @@ if (savedBrain && isCompatibleBrain(savedBrain)) {
     }
     bestCar = cars[0];
 }
+
+saveBestCarBtn.addEventListener('click', saveBestCarManually);
+updateSaveStatusFromStorage();
 
 startWorkers();
 
@@ -174,6 +179,49 @@ function isCompatibleBrain(brain) {
     return brain && brain.inputCount === INPUT_COUNT && brain.outputCount === OUTPUT_COUNT;
 }
 
+function saveBestCarManually() {
+    if (!bestCar?.brain) {
+        setSaveStatus('No car brain to save.');
+        return;
+    }
+
+    const metadata = {
+        generation,
+        fitness: bestCar.fitness,
+        fitnessModel: 'hyperfitness-v1',
+        universeCount: PARALLEL_UNIVERSE_COUNT,
+        carCount: CAR_COUNT,
+        source: 'manual-save',
+        metrics: FitnessEvaluator.summarize(bestCar),
+    };
+
+    NeuralNetwork.save(NeuralNetwork.clone(bestCar.brain), metadata);
+    globalBestFitness = bestCar.fitness;
+    championMetadata = metadata;
+    setSaveStatus(
+        `Saved (gen ${generation}, fitness ${Math.round(bestCar.fitness)}).`
+    );
+}
+
+function setSaveStatus(message) {
+    saveStatus.textContent = message;
+}
+
+function updateSaveStatusFromStorage() {
+    const champion = NeuralNetwork.loadChampion();
+    if (!champion) {
+        setSaveStatus('No saved car yet.');
+        return;
+    }
+
+    const fitness = champion.metadata?.fitness;
+    const savedGen = champion.metadata?.generation;
+    const source = champion.metadata?.source === 'manual-save' ? 'manual' : 'auto';
+    setSaveStatus(
+        `Loaded ${source} save (gen ${savedGen ?? '?'}, fitness ${Math.round(fitness ?? 0)}).`
+    );
+}
+
 function animate() {
     resizeCanvases();
     trafficManager.update(road.borders, bestCar.y);
@@ -189,6 +237,7 @@ function animate() {
     }
 
     bestCar = Car.getBestCar(cars);
+    const bestCarIndex = Car.getBestCarIndex(cars);
 
     carCtx.clearRect(0, 0, carCanvas.width, carCanvas.height);
 
@@ -201,10 +250,10 @@ function animate() {
         car.draw(carCtx);
     }
 
-    carCtx.globalAlpha = 0.2;
-    for (let car of cars) {
-        if (car !== bestCar) {
-            car.draw(carCtx);
+    for (let i = 0; i < cars.length; i++) {
+        if (i !== bestCarIndex) {
+            carCtx.globalAlpha = 0.2;
+            cars[i].draw(carCtx, false);
         }
     }
     carCtx.globalAlpha = 1;
