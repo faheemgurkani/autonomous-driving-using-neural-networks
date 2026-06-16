@@ -2,7 +2,69 @@
 
 Ablation comparing two genetic-evolution strategies for training the self-driving car neural network: **simple mutation-only** evolution versus **crossover + mutation** evolution.
 
-## Algorithms Compared
+## The two algorithms (simple version)
+
+**Mutation-only (the first one)**
+
+Think of it like copying the best driver’s brain and nudging every knob slightly at random.
+
+- Pick a good brain.
+- Clone it.
+- Change weights/biases a little (mutation).
+- No mixing between two parents.
+
+So search stays **near** what already works.
+
+**Crossover + mutation**
+
+Think of it like mixing two good drivers’ brains, then nudging the result.
+
+- Pick two good brains.
+- For each weight, randomly take it from parent A or parent B.
+- Then mutate a little.
+
+So you get **new combinations**, not just small tweaks around one parent.
+
+---
+
+## What the test showed
+
+Both were run the same way (same cars, traffic, generations, mutation rate).
+
+| | Mutation-only | Crossover + mutation |
+|---|---|---|
+| **Best score early (gen 5)** | ~20,943 | ~14,931 |
+| **Best score at end (gen 25)** | ~17,840 | ~19,450 |
+| **Average car quality at end** | ~7,594 | ~9,437 |
+| **Peak score** | ~21,981 | ~21,981 |
+
+---
+
+## Which was better?
+
+**Crossover + mutation was better overall.**
+
+**Why:**
+
+1. **Mutation-only starts fast** — cloning and tweaking the best car improves quickly early on.
+2. **But it plateaus** — everyone ends up too similar; the population doesn’t explore enough.
+3. **Crossover starts slower** — mixing two brains can break good partial solutions early.
+4. **Crossover finishes stronger** — by gen 25 it had a higher best score (+9%) and much healthier average population (+24%).
+
+Both hit the same **peak ceiling** (~21,981) because each run was capped at 500 steps — survivors max out the score regardless of how they were bred.
+
+---
+
+## One-line takeaway
+
+- **Mutation-only** = fast local improvement, weaker long-term diversity.
+- **Crossover + mutation** = slower start, better long-run learning and a stronger population.
+
+That’s why `main.js` uses crossover for full training, and mutation-only fits loading a saved champion and spawning variants around it.
+
+---
+
+## Algorithms Compared (technical detail)
 
 ### 1. Simple Mutation (mutation-only)
 
