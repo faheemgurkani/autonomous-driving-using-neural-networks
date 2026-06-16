@@ -29,16 +29,20 @@ let globalBestFitness = -Infinity;
 let workers = [];
 let championMetadata = null;
 
-const savedChampion = NeuralNetwork.loadChampion();
-if (savedChampion && isCompatibleBrain(savedChampion.brain)) {
-    championMetadata = savedChampion.metadata;
-    globalBestFitness = savedChampion.metadata?.fitness ?? -Infinity;
-    cars = generateCars(CAR_COUNT, [
-        {
-            brain: savedChampion.brain,
-            fitness: savedChampion.metadata?.fitness ?? 1,
-        },
-    ]);
+const savedBrain = NeuralNetwork.load();
+if (savedBrain && isCompatibleBrain(savedBrain)) {
+    const savedChampion = NeuralNetwork.loadChampion();
+    if (savedChampion) {
+        championMetadata = savedChampion.metadata;
+        globalBestFitness = savedChampion.metadata?.fitness ?? -Infinity;
+    }
+
+    for (let i = 0; i < cars.length; i++) {
+        cars[i].brain = NeuralNetwork.clone(savedBrain);
+        if (i !== 0) {
+            NeuralNetwork.mutate(cars[i].brain, MUTATION_RATE);
+        }
+    }
     bestCar = cars[0];
 }
 
