@@ -89,12 +89,13 @@ class Sensor {
     getInputs(road) {
         const rayInputs = this.readings.map((r) => (r == null ? 0 : 1 - r.offset));
         const laneWidth = road.width / road.laneCount;
-        const lanePosition = clamp(
-            ((this.car.x - road.left) / laneWidth - (road.laneCount - 1) / 2) /
-                ((road.laneCount - 1) / 2 || 1),
-            -1,
-            1
-        );
+        const lanePosition = road.getLanePosition?.(this.car) ??
+            clamp(
+                ((this.car.x - road.left) / laneWidth - (road.laneCount - 1) / 2) /
+                    ((road.laneCount - 1) / 2 || 1),
+                -1,
+                1
+            );
         return [
             ...rayInputs,
             clamp(this.car.speed / this.car.maxSpeed, -1, 1),

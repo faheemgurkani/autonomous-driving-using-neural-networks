@@ -70,10 +70,14 @@ function generatePopulation(config, parents = []) {
 
 function runGeneration(config, brains, road, trafficManager) {
     const maxSteps = config.maxStepsPerGeneration ?? 1000;
+    if (config.fitnessModel) {
+        FitnessEvaluator.setModel(config.fitnessModel);
+    }
+    const startY = 100;
     const cars = brains.map((brain, i) => {
         const car = new Car(
-            road.getLaneCenter(1),
-            100,
+            road.getLaneCenter(1, startY),
+            startY,
             30,
             50,
             'hsl(210, 100%, 50%)',
@@ -82,6 +86,9 @@ function runGeneration(config, brains, road, trafficManager) {
             'AI'
         );
         car.parallelSpawnIndex = i;
+        if (road.isCurved) {
+            car.angle = road.getTangentAngleAt(startY);
+        }
         return car;
     });
 
@@ -104,6 +111,7 @@ function runGeneration(config, brains, road, trafficManager) {
 
     const aliveFrames = cars.map((car) => car.framesAlive);
     const fitnesses = cars.map((car) => car.fitness);
+    const damagedCount = cars.filter((car) => car.damaged).length;
 
     return {
         best: ranked[0],
@@ -117,9 +125,20 @@ function runGeneration(config, brains, road, trafficManager) {
             meanFramesAlive:
                 aliveFrames.reduce((a, b) => a + b, 0) / aliveFrames.length,
             bestFramesAlive: Math.max(...aliveFrames),
+            crashRate: damagedCount / cars.length,
+            meanLaneError:
+                cars.reduce((sum, car) => sum + car.metrics.laneErrorSum, 0) /
+                cars.reduce((sum, car) => sum + Math.max(1, car.framesAlive), 0),
             bestMetrics: FitnessEvaluator.summarize(ranked[0].car),
         },
     };
+}
+
+function runFitnessSimulation(fitnessModel, seed, config) {
+    return runEvolutionSimulation('crossover', seed, {
+        ...config,
+        fitnessModel,
+    });
 }
 
 function runEvolutionSimulation(strategy, seed, config) {
@@ -140,7 +159,7 @@ function runEvolutionSimulation(strategy, seed, config) {
         eliteRate,
     } = config;
 
-    const road = new Road(roadCenterX, roadWidth);
+    const road = createRoad(config);
     const trafficManager = new TrafficManager(road, trafficCount);
     const evolutionConfig = {
         carCount,
@@ -150,8 +169,13 @@ function runEvolutionSimulation(strategy, seed, config) {
         mutationRate,
         eliteRate,
         strategy,
+        fitnessModel: config.fitnessModel,
         maxStepsPerGeneration: config.maxStepsPerGeneration,
     };
+
+    if (config.fitnessModel) {
+        FitnessEvaluator.setModel(config.fitnessModel);
+    }
 
     let brains = generatePopulation(evolutionConfig);
     const history = [];
@@ -171,6 +195,8 @@ function runEvolutionSimulation(strategy, seed, config) {
             medianFitness: result.stats.medianFitness,
             meanFramesAlive: result.stats.meanFramesAlive,
             bestFramesAlive: result.stats.bestFramesAlive,
+            crashRate: result.stats.crashRate,
+            meanLaneError: result.stats.meanLaneError,
             globalBestFitness,
             bestMetrics: result.stats.bestMetrics,
         });
@@ -184,6 +210,7 @@ function runEvolutionSimulation(strategy, seed, config) {
 
     return {
         strategy,
+        fitnessModel: config.fitnessModel ?? FitnessEvaluator.activeModel,
         seed,
         config: {
             generations,
@@ -191,6 +218,7 @@ function runEvolutionSimulation(strategy, seed, config) {
             trafficCount,
             mutationRate,
             eliteRate,
+            roadType: config.roadType ?? 'straight',
         },
         history,
         finalBestFitness: history[history.length - 1].bestFitness,
@@ -243,4 +271,51 @@ function summarizeRuns(runs) {
         },
         lastGenerationHistory: runs.map((run) => run.history),
     };
+}
+
+function summarizeFitnessRuns(runs) {
+    const summary = summarizeRuns(runs);
+    const lastGen = runs[0]?.history?.length - 1 ?? 0;
+
+    const finalCrashRate = runs.map((run) => run.history[lastGen]?.crashRate ?? 0);
+    const finalLaneError = runs.map(
+        (run) => run.history[lastGen]?.bestMetrics?.averageLaneError ?? 0
+    );
+    const finalProgress = runs.map(
+        (run) => run.history[lastGen]?.bestMetrics?.forwardProgress ?? 0
+    );
+    const finalCloseCalls = runs.map(
+        (run) => run.history[lastGen]?.bestMetrics?.closeCallLoad ?? 0
+    );
+    const finalPathCrossTrack = runs.map(
+        (run) => run.history[lastGen]?.bestMetrics?.averagePathCrossTrack ?? 0
+    );
+
+    const avg = (values) =>
+        values.reduce((a, b) => a + b, 0) / values.length;
+
+    summary.behavior = {
+        finalCrashRate: {
+            mean: avg(finalCrashRate),
+            values: finalCrashRate,
+        },
+        finalBestLaneError: {
+            mean: avg(finalLaneError),
+            values: finalLaneError,
+        },
+        finalBestProgress: {
+            mean: avg(finalProgress),
+            values: finalProgress,
+        },
+        finalBestCloseCalls: {
+            mean: avg(finalCloseCalls),
+            values: finalCloseCalls,
+        },
+        finalBestPathCrossTrack: {
+            mean: avg(finalPathCrossTrack),
+            values: finalPathCrossTrack,
+        },
+    };
+
+    return summary;
 }

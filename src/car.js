@@ -184,10 +184,15 @@ class Car {
             absSteering: 0,
             unnecessarySteering: 0,
             laneErrorSum: 0,
+            laneErrorSquaredSum: 0,
+            pathCrossTrackSum: 0,
+            pathCrossTrackSquaredSum: 0,
+            pathTangentErrorSum: 0,
             headingErrorSum: 0,
             speedSum: 0,
             closeCallSum: 0,
             idleFrames: 0,
+            laneDepartureFrames: 0,
         };
     }
 

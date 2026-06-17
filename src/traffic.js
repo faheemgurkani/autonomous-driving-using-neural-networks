@@ -43,8 +43,9 @@ class TrafficManager {
     }
 
     #createCar(y) {
+        const laneIndex = getRandomInt(0, this.road.laneCount - 1);
         const car = new Car(
-            this.road.getLaneCenter(getRandomInt(0, this.road.laneCount - 1)),
+            this.road.getLaneCenter(laneIndex, y),
             y,
             30,
             50,
@@ -54,14 +55,18 @@ class TrafficManager {
             'DUMMY'
         );
         car.controls.forward = true;
+        car.angle = this.road.getTangentAngleAt(y);
         return car;
     }
 
     #resetCar(car, y) {
-        car.x = this.road.getLaneCenter(getRandomInt(0, this.road.laneCount - 1));
+        const laneIndex = getRandomInt(0, this.road.laneCount - 1);
+        car.x = this.road.getLaneCenter(laneIndex, y);
         car.y = y;
         car.startY = y;
-        car.angle = Math.random() < 0.15 ? lerp(-0.05, 0.05, Math.random()) : 0;
+        car.angle =
+            this.road.getTangentAngleAt(y) +
+            (Math.random() < 0.15 ? lerp(-0.05, 0.05, Math.random()) : 0);
         car.speed = 0;
         car.maxSpeed = lerp(1.4, 2.8, Math.random());
         car.color = getRandomTrafficColor();
